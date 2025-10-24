@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>蛋白质分类 - Parquet 批量预测</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #1a73e8;
+            --primary-light: #4285f4;
+            --primary-dark: #0d47a1;
+            --secondary: #4fc3f7;
+            --secondary-light: #81d4fa;
+            --secondary-dark: #0288d1;
+            --accent: #2962ff;
+            --light: #f8f9fa;
+            --dark: #202124;
+            --gray: #5f6368;
+            --light-gray: #dadce0;
+            --danger: #ea4335;
+            --warning: #fbbc04;
+            --success: #34a853;
+            --shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            --radius: 12px;
+            --transition: all 0.3s ease;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: var(--dark);
+            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* 导航栏样式 */
+        .navbar {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            margin-bottom: 30px;
+            position: sticky;
+            top: 20px;
+            z-index: 100;
+        }
+
+        .navbar-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 25px;
+            height: 70px;
+        }
+
+        .navbar-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: white;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 1.3rem;
+        }
+
+        .navbar-brand i {
+            font-size: 1.5rem;
+        }
+
+        .navbar-menu {
+            display: flex;
+            list-style: none;
+            gap: 10px;
+        }
+
+        .navbar-item {
+            position: relative;
+        }
+
+        .navbar-link {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: white;
+            text-decoration: none;
+            padding: 12px 18px;
+            border-radius: 6px;
+            transition: var(--transition);
+            font-weight: 500;
+        }
+
+        .navbar-link:hover {
+            background-color: rgba(255, 255, 255, 0.15);
+        }
+
+        .navbar-link.active {
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .navbar-toggle {
+            display: none;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .navbar-toggle {
+                display: block;
+            }
+
+            .navbar-menu {
+                position: absolute;
+                top: 100%;
+                left: 0;
+                right: 0;
+                background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+                flex-direction: column;
+                padding: 15px;
+                border-radius: 0 0 var(--radius) var(--radius);
+                box-shadow: var(--shadow);
+                display: none;
+            }
+
+            .navbar-menu.active {
+                display: flex;
+            }
+
+            .navbar-link {
+                padding: 15px;
+                justify-content: center;
+            }
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 40px 20px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+
+        header::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+        }
+
+        h1 {
+            font-size: 2.8rem;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            position: relative;
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            max-width: 700px;
+            margin: 0 auto;
+            opacity: 0.9;
+            font-weight: 300;
+        }
+
+        .card {
+            background: white;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 30px;
+            margin-bottom: 30px;
+            transition: var(--transition);
+            border: 1px solid var(--light-gray);
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--light-gray);
+        }
+
+        .card-header i {
+            font-size: 1.8rem;
+            color: var(--primary);
+            background: rgba(26, 115, 232, 0.1);
+            padding: 12px;
+            border-radius: 50%;
+        }
+
+        .card-header h2 {
+            font-size: 1.6rem;
+            color: var(--dark);
+            font-weight: 600;
+        }
+
+        .upload-area {
+            border: 2px dashed var(--primary);
+            border-radius: var(--radius);
+            padding: 50px 20px;
+            text-align: center;
+            background-color: rgba(26, 115, 232, 0.03);
+            transition: var(--transition);
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .upload-area.active {
+            border-color: var(--secondary-dark);
+            background-color: rgba(2, 136, 209, 0.08);
+        }
+
+        .upload-area i {
+            font-size: 3.5rem;
+            color: var(--primary);
+            margin-bottom: 20px;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            display: inline-block;
+            margin: 25px 0;
+        }
+
+        .file-input-wrapper input[type="file"] {
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+
+        .file-input-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 30px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+            color: white;
+            border-radius: 50px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            box-shadow: 0 4px 12px rgba(26, 115, 232, 0.3);
+        }
+
+        .file-input-button:hover {
+            background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(26, 115, 232, 0.4);
+        }
+
+        .file-name {
+            margin-top: 15px;
+            font-size: 1rem;
+            color: var(--gray);
+            background: rgba(26, 115, 232, 0.05);
+            padding: 10px 15px;
+            border-radius: 8px;
+            display: inline-block;
+            max-width: 400px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .requirements {
+            text-align: left;
+            max-width: 500px;
+            margin: 25px auto;
+            background: rgba(26, 115, 232, 0.05);
+            padding: 20px;
+            border-radius: var(--radius);
+            border-left: 4px solid var(--primary);
+        }
+
+        .requirements h4 {
+            margin-bottom: 12px;
+            color: var(--dark);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .requirements ul {
+            list-style-type: none;
+        }
+
+        .requirements li {
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .requirements li i {
+            color: var(--primary);
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 35px;
+            background: linear-gradient(135deg, var(--secondary) 0%, var(--secondary-dark) 100%);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            font-size: 1.05rem;
+            box-shadow: 0 4px 12px rgba(79, 195, 247, 0.4);
+        }
+
+        .btn:hover {
+            background: linear-gradient(135deg, var(--secondary-dark) 0%, var(--secondary) 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(79, 195, 247, 0.5);
+        }
+
+        .btn:disabled {
+            background: var(--light-gray);
+            color: var(--gray);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn i {
+            font-size: 1.1rem;
+        }
+
+        #result {
+            margin-top: 30px;
+        }
+
+        .metric-card {
+            display: flex;
+            align-items: center;
+            gap: 25px;
+            padding: 25px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+            color: white;
+            border-radius: var(--radius);
+            margin-bottom: 25px;
+            box-shadow: var(--shadow);
+        }
+
+        .metric-icon {
+            font-size: 2.8rem;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 15px;
+            border-radius: 50%;
+        }
+
+        .metric-content h3 {
+            font-size: 1.3rem;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .metric-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 25px 0;
+            box-shadow: 0 1px 8px rgba(0, 0, 0, 0.08);
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+
+        th, td {
+            padding: 15px 18px;
+            text-align: left;
+            border-bottom: 1px solid var(--light-gray);
+        }
+
+        th {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+            color: white;
+            font-weight: 600;
+            position: relative;
+        }
+
+        th:after {
+            content: "";
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: var(--secondary);
+        }
+
+        tr:nth-child(even) {
+            background-color: rgba(26, 115, 232, 0.03);
+        }
+
+        tr:hover {
+            background-color: rgba(26, 115, 232, 0.08);
+        }
+
+        .cm-image {
+            max-width: 100%;
+            height: auto;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            margin: 25px 0;
+            border: 1px solid var(--light-gray);
+        }
+
+        .note {
+            color: var(--gray);
+            font-size: 0.95rem;
+            margin-top: 12px;
+        }
+
+        .error {
+            color: var(--danger);
+            background: rgba(234, 67, 53, 0.08);
+            padding: 20px;
+            border-radius: var(--radius);
+            border-left: 4px solid var(--danger);
+        }
+
+        .warning {
+            color: var(--warning);
+            background: rgba(251, 188, 4, 0.08);
+            padding: 20px;
+            border-radius: var(--radius);
+            border-left: 4px solid var(--warning);
+        }
+
+        .success {
+            color: var(--success);
+            background: rgba(52, 168, 83, 0.08);
+            padding: 20px;
+            border-radius: var(--radius);
+            border-left: 4px solid var(--success);
+        }
+
+        .loading {
+            display: inline-block;
+            width: 22px;
+            height: 22px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .feature-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        .feature-tag {
+            background: rgba(26, 115, 232, 0.1);
+            color: var(--primary-dark);
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            border: 1px solid rgba(26, 115, 232, 0.2);
+        }
+
+        .feature-tag:first-child {
+            background: rgba(26, 115, 232, 0.15);
+            font-weight: 600;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 60px;
+            padding: 25px;
+            color: var(--gray);
+            font-size: 0.95rem;
+            border-top: 1px solid var(--light-gray);
+        }
+
+        .progress-bar {
+            height: 6px;
+            background: var(--light-gray);
+            border-radius: 3px;
+            margin: 20px 0;
+            overflow: hidden;
+        }
+
+        .progress {
+            height: 100%;
+            background: linear-gradient(90deg, var(--secondary) 0%, var(--primary) 100%);
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2.2rem;
+            }
+            
+            .card {
+                padding: 20px;
+            }
+            
+            .metric-card {
+                flex-direction: column;
+                text-align: center;
+                gap: 15px;
+            }
+            
+            table {
+                display: block;
+                overflow-x: auto;
+            }
+            
+            .upload-area {
+                padding: 30px 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 导航栏 -->
+        <nav class="navbar">
+            <div class="navbar-container">
+                <a href="#" class="navbar-brand">
+                    <i class="fas fa-dna"></i>
+                    <span>蛋白质分析平台</span>
+                </a>
+                
+                <button class="navbar-toggle" id="navbarToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                
+                <ul class="navbar-menu" id="navbarMenu">
+                    <li class="navbar-item">
+                        <a href="http://127.0.0.1:8848/25%E5%8D%93%E8%B6%8A%E6%9D%AF%E5%A4%A7%E6%95%B0%E6%8D%AE/main.html#" class="navbar-link active">
+                            <i class="fas fa-home"></i>
+                            <span>首页</span>
+                        </a>
+                    </li>
+                    <li class="navbar-item">
+                        <a href="#" class="navbar-link">
+                            <i class="fas fa-upload"></i>
+                            <span>上传数据</span>
+                        </a>
+                    </li>
+                    <li class="navbar-item">
+                        <a href="#" class="navbar-link">
+                            <i class="fas fa-history"></i>
+                            <span>历史记录</span>
+                        </a>
+                    </li>
+                    <li class="navbar-item">
+                        <a href="#" class="navbar-link">
+                            <i class="fas fa-chart-line"></i>
+                            <span>分析结果</span>
+                        </a>
+                    </li>
+                    <li class="navbar-item">
+                        <a href="#" class="navbar-link">
+                            <i class="fas fa-cog"></i>
+                            <span>设置</span>
+                        </a>
+                    </li>
+                    <li class="navbar-item">
+                        <a href="#" class="navbar-link">
+                            <i class="fas fa-question-circle"></i>
+                            <span>帮助</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+
+        <header>
+            <h1><i class="fas fa-dna"></i> 蛋白质分类模型</h1>
+            <p class="subtitle">使用机器学习模型对蛋白质序列进行分类预测 - 支持Parquet格式批量处理</p>
+        </header>
+
+        <main>
+            <section class="card">
+                <div class="card-header">
+                    <i class="fas fa-file-upload"></i>
+                    <h2>上传测试数据</h2>
+                </div>
+                
+                <div class="upload-area" id="uploadArea">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                    <h3>上传Parquet格式测试文件</h3>
+                    <p>拖放文件到此处或点击下方按钮选择文件</p>
+                    
+                    <div class="file-input-wrapper">
+                        <div class="file-input-button">
+                            选择文件
+                        </div>
+                        <input type="file" id="parquetFile" accept=".parquet">
+                    </div>
+                    
+                    <div class="file-name" id="fileName">未选择文件</div>
+                    
+                    <div class="requirements">
+                        <h4><i class="fas fa-info-circle"></i> 文件要求</h4>
+                        <ul>
+                            <li><i class="fas fa-check-circle"></i> 格式: <code>.parquet</code></li>
+                            <li><i class="fas fa-check-circle"></i> 必须包含列: <code>label</code></li>
+                            <li><i class="fas fa-check-circle"></i> 其余所有列为特征（顺序需与训练一致）</li>
+                        </ul>
+                    </div>
+                    
+                    <button id="predictBtn" class="btn" onclick="uploadParquet()" disabled>
+                        <i class="fas fa-rocket"></i> 开始预测
+                    </button>
+                </div>
+                
+                <div class="feature-list">
+                    <div class="feature-tag">特征列示例:</div>
+                    <div class="feature-tag">feature_1</div>
+                    <div class="feature-tag">feature_2</div>
+                    <div class="feature-tag">feature_3</div>
+                    <div class="feature-tag">feature_4</div>
+                    <div class="feature-tag">...</div>
+                </div>
+            </section>
+
+            <section id="result"></section>
+        </main>
+
+        <footer>
+            <p>蛋白质分类预测系统 &copy; 2023 | 基于机器学习技术</p>
+        </footer>
+    </div>
+
+    <script>
+        // 导航栏响应式切换
+        const navbarToggle = document.getElementById('navbarToggle');
+        const navbarMenu = document.getElementById('navbarMenu');
+        
+        navbarToggle.addEventListener('click', function() {
+            navbarMenu.classList.toggle('active');
+        });
+        
+        // 从后端获取训练时的特征列（用于提示）
+        const expectedFeatures = {{ feature_columns | tojson }};
+        
+        // 文件选择和上传区域交互
+        const fileInput = document.getElementById('parquetFile');
+        const fileName = document.getElementById('fileName');
+        const predictBtn = document.getElementById('predictBtn');
+        const uploadArea = document.getElementById('uploadArea');
+        
+        fileInput.addEventListener('change', function() {
+            if (this.files.length > 0) {
+                fileName.textContent = this.files[0].name;
+                predictBtn.disabled = false;
+                uploadArea.classList.add('active');
+            } else {
+                fileName.textContent = '未选择文件';
+                predictBtn.disabled = true;
+                uploadArea.classList.remove('active');
+            }
+        });
+        
+        // 拖放功能
+        uploadArea.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            uploadArea.classList.add('active');
+        });
+        
+        uploadArea.addEventListener('dragleave', function() {
+            uploadArea.classList.remove('active');
+        });
+        
+        uploadArea.addEventListener('drop', function(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('active');
+            
+            if (e.dataTransfer.files.length > 0) {
+                fileInput.files = e.dataTransfer.files;
+                fileName.textContent = fileInput.files[0].name;
+                predictBtn.disabled = false;
+            }
+        });
+
+        // 安全格式化数值：避免 toFixed 报错
+        function safeFormat(value) {
+            if (value === null || value === undefined || value === 'N/A' || isNaN(value)) {
+                return 'N/A';
+            }
+            if (typeof value === 'number') {
+                return value.toFixed(4);
+            }
+            return String(value);
+        }
+
+        function uploadParquet() {
+            const file = fileInput.files[0];
+            if (!file) {
+                alert("请先选择一个 Parquet 文件！");
+                return;
+            }
+
+            // 显示加载状态
+            const originalBtnText = predictBtn.innerHTML;
+            predictBtn.innerHTML = '<span class="loading"></span> 处理中...';
+            predictBtn.disabled = true;
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            fetch('/predict_parquet', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) {
+                    // 捕获非 JSON 响应（如 HTML 错误页）
+                    return response.text().then(text => {
+                        throw new Error(`HTTP ${response.status}: ${text.substring(0, 200)}...`);
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                // 恢复按钮状态
+                predictBtn.innerHTML = originalBtnText;
+                predictBtn.disabled = false;
+                
+                if (data.error) {
+                    document.getElementById('result').innerHTML = 
+                        `<div class="error">
+                            <h3><i class="fas fa-exclamation-triangle"></i> 处理错误</h3>
+                            <p>${data.error}</p>
+                        </div>`;
+                    return;
+                }
+
+                let html = `
+                    <div class="card">
+                        <div class="card-header">
+                            <i class="fas fa-chart-bar"></i>
+                            <h2>预测结果</h2>
+                        </div>
+                        
+                        <div class="metric-card">
+                            <div class="metric-icon">
+                                <i class="fas fa-tachometer-alt"></i>
+                            </div>
+                            <div class="metric-content">
+                                <h3>模型准确率</h3>
+                                <div class="metric-value">${(data.accuracy * 100).toFixed(2)}%</div>
+                            </div>
+                        </div>
+                        
+                        <p><i class="fas fa-database"></i> 总样本数: ${data.total_samples}</p>
+                        
+                        <h3><i class="fas fa-table"></i> 分类报告</h3>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>类别</th>
+                                    <th>精确率</th>
+                                    <th>召回率</th>
+                                    <th>F1-score</th>
+                                    <th>支持数</th>
+                                </tr>
+                            </thead>
+                            <tbody>`;
+                
+                for (const [cls, metrics] of Object.entries(data.classification_report)) {
+                    if (cls === 'accuracy') continue;
+                    html += `
+                        <tr>
+                            <td><strong>${cls}</strong></td>
+                            <td>${safeFormat(metrics.precision)}</td>
+                            <td>${safeFormat(metrics.recall)}</td>
+                            <td>${safeFormat(metrics.f1_score)}</td>
+                            <td>${metrics.support}</td>
+                        </tr>`;
+                }
+                html += `</tbody></table>`;
+
+                // 混淆矩阵图像
+                if (data.confusion_matrix_image) {
+                    html += `
+                        <h3><i class="fas fa-project-diagram"></i> 混淆矩阵</h3>
+                        <img src="data:image/png;base64,${data.confusion_matrix_image}" class="cm-image" alt="Confusion Matrix" />`;
+                }
+
+                // 预测详情（前 50 条）
+                if (data.predictions && data.predictions.length > 0) {
+                    html += `
+                        <h3><i class="fas fa-list"></i> 预测详情（前 ${Math.min(50, data.predictions.length)} 条）</h3>
+                        <div style="overflow-x: auto;">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>真实标签</th>
+                                        <th>预测标签</th>`;
+
+                    // 动态生成表头（只取特征列）
+                    Object.keys(data.predictions[0])
+                          .filter(k => !['true_label', 'predicted_label'].includes(k))
+                          .forEach(k => {
+                              html += `<th title="${k}">${k.length > 15 ? k.slice(0, 15) + '...' : k}</th>`;
+                          });
+                    html += `</tr></thead><tbody>`;
+
+                    // 生成每一行
+                    data.predictions.slice(0, 50).forEach(row => {
+                        html += `<tr>
+                                    <td><strong>${safeFormat(row.true_label)}</strong></td>
+                                    <td><strong>${safeFormat(row.predicted_label)}</strong></td>`;
+                        
+                        Object.keys(row)
+                              .filter(k => !['true_label', 'predicted_label'].includes(k))
+                              .forEach(k => {
+                                  html += `<td>${safeFormat(row[k])}</td>`;
+                              });
+                        html += `</tr>`;
+                    });
+                    html += `</tbody></table></div>`;
+                } else {
+                    html += `<div class="warning">
+                                <h3><i class="fas fa-exclamation-circle"></i> 数据提示</h3>
+                                <p>未返回预测样本数据。</p>
+                            </div>`;
+                }
+
+                html += `</div>`;
+                document.getElementById('result').innerHTML = html;
+            })
+            .catch(err => {
+                console.error("前端错误详情:", err);
+                // 恢复按钮状态
+                predictBtn.innerHTML = originalBtnText;
+                predictBtn.disabled = false;
+                
+                document.getElementById('result').innerHTML = 
+                    `<div class="error">
+                        <h3><i class="fas fa-exclamation-triangle"></i> 请求失败</h3>
+                        <p>${err.message}</p>
+                        <p class="note">请检查后端是否返回了 JSON，或查看浏览器控制台（F12）获取详细错误。</p>
+                    </div>`;
+            });
+        }
+    </script>
+</body>
+</html>
