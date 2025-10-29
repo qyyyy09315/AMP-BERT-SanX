@@ -453,8 +453,8 @@ def main():
     print(f"数据形状 - 训练集: {X_train.shape}, 测试集: {X_test.shape}")
 
     # 记录之前的最佳性能
-    previous_best_r2 = 0.3539
-    print(f"之前最佳R²: {previous_best_r2:.4f}")
+    # previous_best_r2 = 0.3539
+    # print(f"之前最佳R²: {previous_best_r2:.4f}")
 
     # 创建优化器
     optimizer = UltimateExtraTreesOptimizer()
