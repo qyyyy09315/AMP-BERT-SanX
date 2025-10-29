@@ -135,7 +135,7 @@ plt.show()
 # -------------------------------
 # 10. 保存所有组件（模型 + scaler + PCA）
 # -------------------------------
-model_save_dir = "../models"
+model_save_dir = "../../models"
 os.makedirs(model_save_dir, exist_ok=True)
 
 joblib.dump(svm_model, os.path.join(model_save_dir, "svm_fast_protein_classifier.pkl"))
