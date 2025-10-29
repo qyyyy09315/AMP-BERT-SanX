@@ -258,7 +258,7 @@ plt.show()
 # -------------------------------
 # 13. 保存模型和 scaler
 # -------------------------------
-model_save_dir = "../models"
+model_save_dir = "../../models"
 os.makedirs(model_save_dir, exist_ok=True)
 
 # 保存模型结构和权重
