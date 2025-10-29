@@ -434,8 +434,8 @@ class UltimateExtraTreesOptimizer:
 def main():
     """主函数"""
     # 文件路径
-    train_path = r"D:\PyProject\25卓越杯大数据\data2\train_re_with_delete.csv"
-    test_path = r"D:\PyProject\25卓越杯大数据\data2\test_re_with_delete.csv"
+    train_path = r"../../Data/train_re_with_delete.csv"
+    test_path = r"../../Data/test_re_with_delete.csv"
 
     print("开始终极ExtraTrees优化V2...")
 
